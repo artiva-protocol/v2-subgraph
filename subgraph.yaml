@@ -1,0 +1,38 @@
+specVersion: 0.0.1
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Observability
+    network: optimism-kovan
+    source:
+      address: "0x734a13455c41bebfbf0997dfbd802432b639cc96"
+      abi: Observability
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - CloneDeployed
+        - ContentDigestAdded
+        - ContentDigestRemoved
+        - FactoryImplementationSet
+        - PlatformMetadataDigestSet
+        - RoleSet
+      abis:
+        - name: Observability
+          file: ./abis/Observability.json
+      eventHandlers:
+        - event: CloneDeployed(indexed address,indexed address,indexed address)
+          handler: handleCloneDeployed
+        - event: ContentDigestAdded(indexed address,indexed bytes32,indexed address)
+          handler: handleContentDigestAdded
+        - event: ContentDigestRemoved(indexed address,indexed bytes32)
+          handler: handleContentDigestRemoved
+        - event: FactoryImplementationSet(indexed address,indexed address,indexed address)
+          handler: handleFactoryImplementationSet
+        - event: PlatformMetadataDigestSet(indexed address,indexed bytes32)
+          handler: handlePlatformMetadataDigestSet
+        - event: RoleSet(indexed address,indexed address,indexed bytes32,bool)
+          handler: handleRoleSet
+      file: ./src/observability.ts
