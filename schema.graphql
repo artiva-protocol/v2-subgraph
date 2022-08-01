@@ -1,6 +1,32 @@
-type ExampleEntity @entity {
+enum ContentStatus {
+  CURATED
+  REMOVED
+}
+
+type Platform @entity {
   id: ID!
-  count: BigInt!
-  factory: Bytes! # address
-  owner: Bytes! # address
+  users: [PlatformUser!]! @derivedFrom(field: "platform")
+  contentDigests: [ContentDigest!]! @derivedFrom(field: "platform")
+  platformMetadataDigest: Bytes
+  contentAddedTimestamp: String
+  metadataDigestUpdatedTimestamp: String!
+  deployedAtTimestamp: String!
+}
+
+type ContentDigest @entity {
+  id: ID!
+  platform: Platform!
+  owner: PlatformUser!
+  status: ContentStatus!
+  addedAtTimestamp: String!
+  removedAtTimestamp: String
+}
+
+type PlatformUser @entity {
+  id: ID!
+  platform: Platform!
+  admin: Boolean
+  contentPublisher: Boolean
+  metadataManager: Boolean
+  contentDigests: [ContentDigest!]! @derivedFrom(field: "owner")
 }
