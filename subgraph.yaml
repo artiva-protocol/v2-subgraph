@@ -4,21 +4,20 @@ schema:
 dataSources:
   - kind: ethereum
     name: Observability
-    network: optimism-kovan
+    network: goerli
     source:
-      address: "0x88cf51792bae86ce577a9b633f7d31dee1b0d3b2"
+      address: "0x33ece552dc1c77dbc66c61514a0a506ed23a1b10"
       abi: Observability
-      startBlock: 5364330
+      startBlock: 7624500
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
       language: wasm/assemblyscript
       entities:
         - CloneDeployed
-        - ContentDigestAdded
-        - ContentDigestRemoved
+        - ContentSet
         - FactoryImplementationSet
-        - PlatformMetadataDigestSet
+        - PlatformMetadataURISet
         - RoleSet
       abis:
         - name: Observability
@@ -26,14 +25,12 @@ dataSources:
       eventHandlers:
         - event: CloneDeployed(indexed address,indexed address,indexed address)
           handler: handleCloneDeployed
-        - event: ContentDigestAdded(indexed address,indexed bytes32,indexed address)
-          handler: handleContentDigestAdded
-        - event: ContentDigestRemoved(indexed address,indexed bytes32)
-          handler: handleContentDigestRemoved
+        - event: ContentSet(indexed address,indexed uint256,string,indexed address)
+          handler: handleContentSet
         - event: FactoryImplementationSet(indexed address,indexed address,indexed address)
           handler: handleFactoryImplementationSet
-        - event: PlatformMetadataDigestSet(indexed address,indexed bytes32)
-          handler: handlePlatformMetadataDigestSet
+        - event: PlatformMetadataURISet(indexed address,string)
+          handler: handlePlatformMetadataURISet
         - event: RoleSet(indexed address,indexed address,indexed bytes32,bool)
           handler: handleRoleSet
       file: ./src/observability.ts

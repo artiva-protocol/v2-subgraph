@@ -1,12 +1,11 @@
 import {
   CloneDeployed,
-  ContentDigestAdded,
-  ContentDigestRemoved,
+  ContentSet,
   FactoryImplementationSet,
-  PlatformMetadataDigestSet,
+  PlatformMetadataURISet,
   RoleSet,
 } from "../generated/Observability/Observability";
-import { Platform, ContentDigest, PlatformUser } from "../generated/schema";
+import { Platform, Content, PlatformUser } from "../generated/schema";
 
 export function handleCloneDeployed(event: CloneDeployed): void {
   let platform = new Platform(event.params.clone.toHex());
@@ -16,41 +15,39 @@ export function handleCloneDeployed(event: CloneDeployed): void {
   platform.save();
 }
 
-export function handleContentDigestAdded(event: ContentDigestAdded): void {
-  let contentDigest = new ContentDigest(event.params.digest.toBase58());
+export function handleContentSet(event: ContentSet): void {
+  let content = new Content(
+    event.params.clone.toHex() + ":" + event.params.contentId.toHex()
+  );
 
-  contentDigest.platform = event.params.clone.toHex();
-  contentDigest.owner = event.params.owner.toHex();
-  contentDigest.addedAtTimestamp = event.block.timestamp.toString();
-  contentDigest.removedAtTimestamp = null;
-  contentDigest.status = "CURATED";
-  contentDigest.save();
+  content.contentId = event.params.contentId.toHex();
+  content.uri = event.params.contentURI;
+  content.platform = event.params.clone.toHex();
+  content.owner = `${event.params.clone.toHex()}:${event.params.owner.toHex()}`;
+  content.setAtTimestamp = event.block.timestamp.toString();
+  content.save();
 
   let platform = new Platform(event.params.clone.toHex());
   platform.contentAddedTimestamp = event.block.timestamp.toString();
   platform.save();
 }
 
-export function handleContentDigestRemoved(event: ContentDigestRemoved): void {
-  let contentDigest = new ContentDigest(event.params.digest.toBase58());
-  contentDigest.removedAtTimestamp = event.block.timestamp.toString();
-  contentDigest.status = "REMOVED";
-  contentDigest.save();
-}
-
-export function handlePlatformMetadataDigestSet(
-  event: PlatformMetadataDigestSet
+export function handlePlatformMetadataURISet(
+  event: PlatformMetadataURISet
 ): void {
   let platform = new Platform(event.params.clone.toHex());
-  platform.platformMetadataDigest = event.params.platformMetadataDigest;
+  platform.metadataURI = event.params.metadataURI;
   platform.metadataDigestUpdatedTimestamp = event.block.timestamp.toString();
   platform.save();
 }
 
 export function handleRoleSet(event: RoleSet): void {
-  let user = PlatformUser.load(event.params.account.toHex());
+  const userId = `${event.params.clone.toHex()}:${event.params.account.toHex()}`;
+
+  let user = PlatformUser.load(userId);
   if (!user) {
-    user = new PlatformUser(event.params.account.toHex());
+    user = new PlatformUser(userId);
+    user.user = event.params.account;
     user.admin = false;
     user.contentPublisher = false;
     user.metadataManager = false;

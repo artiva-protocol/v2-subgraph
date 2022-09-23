@@ -1,32 +1,28 @@
-enum ContentStatus {
-  CURATED
-  REMOVED
-}
-
 type Platform @entity {
   id: ID!
   users: [PlatformUser!]! @derivedFrom(field: "platform")
-  contentDigests: [ContentDigest!]! @derivedFrom(field: "platform")
-  platformMetadataDigest: Bytes
+  content: [Content!]! @derivedFrom(field: "platform")
+  metadataURI: String
   contentAddedTimestamp: String
   metadataDigestUpdatedTimestamp: String!
   deployedAtTimestamp: String!
 }
 
-type ContentDigest @entity {
+type Content @entity {
   id: ID!
+  contentId: String!
+  uri: String!
   platform: Platform!
   owner: PlatformUser!
-  status: ContentStatus!
-  addedAtTimestamp: String!
-  removedAtTimestamp: String
+  setAtTimestamp: String!
 }
 
 type PlatformUser @entity {
   id: ID!
+  user: Bytes!
   platform: Platform!
   admin: Boolean
   contentPublisher: Boolean
   metadataManager: Boolean
-  contentDigests: [ContentDigest!]! @derivedFrom(field: "owner")
+  content: [Content!]! @derivedFrom(field: "owner")
 }
