@@ -2,42 +2,87 @@ import {
   CloneDeployed,
   ContentSet,
   FactoryImplementationSet,
-  PlatformMetadataURISet,
+  PlatformMetadataSet,
   RoleSet,
 } from "../generated/Observability/Observability";
-import { Platform, Content, PlatformUser } from "../generated/schema";
+import { Platform, Post, Bundle, PlatformUser } from "../generated/schema";
+import { json, store, JSONValueKind } from "@graphprotocol/graph-ts";
 
 export function handleCloneDeployed(event: CloneDeployed): void {
   let platform = new Platform(event.params.clone.toHex());
-  platform.metadataDigestUpdatedTimestamp = event.block.timestamp.toString();
+  platform.metadataUpdatedTimestamp = event.block.timestamp.toString();
   platform.deployedAtTimestamp = event.block.timestamp.toString();
 
   platform.save();
 }
 
 export function handleContentSet(event: ContentSet): void {
-  let content = new Content(
-    event.params.clone.toHex() + ":" + event.params.contentId.toHex()
-  );
+  let clone = event.params.clone.toHex();
+  let bundleId = event.params.bundleId.toHex();
 
-  content.contentId = event.params.contentId.toHex();
-  content.uri = event.params.contentURI;
-  content.platform = event.params.clone.toHex();
-  content.owner = `${event.params.clone.toHex()}:${event.params.owner.toHex()}`;
-  content.setAtTimestamp = event.block.timestamp.toString();
-  content.save();
+  //Check if bundle JSON is formatted properly
+  let rawBundle = json.try_fromString(event.params.bundleJSON);
+  if (rawBundle.isError || rawBundle.value.kind !== JSONValueKind.ARRAY) return;
+
+  let bundle = Bundle.load(event.params.bundleId.toHex());
+  if (bundle) {
+    //Clear previous posts
+    for (let i = 0; i < bundle.length; i++) {
+      let postId = clone + ":" + bundleId + ":" + i.toString();
+      store.remove("Post", postId);
+    }
+  } else {
+    bundle = new Bundle(bundleId);
+  }
+
+  let bundleArray = rawBundle.value.toArray();
+  let bundleLength = 0;
+
+  //Get content from bundle
+  for (let i = 0; i < bundleArray.length; i++) {
+    //if json is not formatted properly skip this entry
+    if (bundleArray[i].kind !== JSONValueKind.OBJECT) continue;
+    let rawContent = bundleArray[i].toObject();
+
+    //if required properties are not set skip this entry
+    if (
+      !rawContent.isSet("id") ||
+      !rawContent.isSet("type") ||
+      !rawContent.isSet("contentJSON")
+    )
+      continue;
+
+    let content = new Post(
+      clone + ":" + bundleId + ":" + bundleLength.toString()
+    );
+
+    content.postId = rawContent.mustGetEntry("id").value.toString();
+    content.contentJSON = rawContent
+      .mustGetEntry("contentJSON")
+      .value.toString();
+    content.type = rawContent.mustGetEntry("type").value.toString();
+
+    content.bundle = event.params.bundleId.toHex();
+    content.platform = event.params.clone.toHex();
+    content.owner = `${event.params.clone.toHex()}:${event.params.owner.toHex()}`;
+    content.setAtTimestamp = event.block.timestamp.toString();
+    content.save();
+
+    bundleLength++;
+  }
+
+  bundle.length = bundleLength;
+  bundle.save();
 
   let platform = new Platform(event.params.clone.toHex());
   platform.contentAddedTimestamp = event.block.timestamp.toString();
   platform.save();
 }
 
-export function handlePlatformMetadataURISet(
-  event: PlatformMetadataURISet
-): void {
+export function handlePlatformMetadataSet(event: PlatformMetadataSet): void {
   let platform = new Platform(event.params.clone.toHex());
-  platform.metadataURI = event.params.metadataURI;
-  platform.metadataDigestUpdatedTimestamp = event.block.timestamp.toString();
+  platform.metadataJSON = event.params.metadataJSON;
+  platform.metadataUpdatedTimestamp = event.block.timestamp.toString();
   platform.save();
 }
 

@@ -1,20 +1,40 @@
 type Platform @entity {
   id: ID!
   users: [PlatformUser!]! @derivedFrom(field: "platform")
-  content: [Content!]! @derivedFrom(field: "platform")
-  metadataURI: String
+  posts: [Post!]! @derivedFrom(field: "platform")
+  metadataJSON: String
   contentAddedTimestamp: String
-  metadataDigestUpdatedTimestamp: String!
+  metadataUpdatedTimestamp: String!
   deployedAtTimestamp: String!
 }
 
-type Content @entity {
+type Bundle @entity {
   id: ID!
-  contentId: String!
-  uri: String!
+  posts: [Post!]! @derivedFrom(field: "bundle")
+  length: Int!
+}
+
+type Post @entity {
+  id: ID!
+  postId: String!
+  contentJSON: String!
+  type: String!
+  bundle: Bundle!
   platform: Platform!
   owner: PlatformUser!
   setAtTimestamp: String!
+  tags: [PostTag!]! @derivedFrom(field: "post")
+}
+
+type Tag @entity {
+  id: ID!
+  posts: [PostTag!]! @derivedFrom(field: "tag")
+}
+
+type PostTag @entity {
+  id: ID!
+  tag: Tag!
+  post: Post!
 }
 
 type PlatformUser @entity {
@@ -24,5 +44,5 @@ type PlatformUser @entity {
   admin: Boolean
   contentPublisher: Boolean
   metadataManager: Boolean
-  content: [Content!]! @derivedFrom(field: "owner")
+  posts: [Post!]! @derivedFrom(field: "owner")
 }
