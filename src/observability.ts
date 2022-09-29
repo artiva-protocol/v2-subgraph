@@ -5,7 +5,7 @@ import {
   PlatformMetadataSet,
   RoleSet,
 } from "../generated/Observability/Observability";
-import { Platform, Post, Bundle, PlatformUser } from "../generated/schema";
+import { Platform, Post, Bundle, PlatformUser, Tag } from "../generated/schema";
 import { json, store, JSONValueKind } from "@graphprotocol/graph-ts";
 
 export function handleCloneDeployed(event: CloneDeployed): void {
@@ -52,9 +52,26 @@ export function handleContentSet(event: ContentSet): void {
     )
       continue;
 
-    let content = new Post(
-      clone + ":" + bundleId + ":" + bundleLength.toString()
-    );
+    //Create post object
+    let postId = clone + ":" + bundleId + ":" + bundleLength.toString();
+    let content = new Post(postId);
+
+    //Handle tags
+    let tagIds: string[] = [];
+    if (rawContent.isSet("tags")) {
+      let tagString = rawContent.mustGetEntry("tags").value.toString();
+      let tagArray = tagString.split("|");
+      for (let i = 0; i < tagArray.length; i++) {
+        let tagId = `${clone}:${tagArray[i]}`;
+
+        let tag = new Tag(tagId);
+        tag.name = tagArray[i];
+        tag.platform = clone;
+        tag.save();
+
+        tagIds.push(tagId);
+      }
+    }
 
     content.postId = rawContent.mustGetEntry("id").value.toString();
     content.contentJSON = rawContent
@@ -62,9 +79,10 @@ export function handleContentSet(event: ContentSet): void {
       .value.toString();
     content.type = rawContent.mustGetEntry("type").value.toString();
 
+    content.tags = tagIds;
     content.bundle = event.params.bundleId.toHex();
-    content.platform = event.params.clone.toHex();
-    content.owner = `${event.params.clone.toHex()}:${event.params.owner.toHex()}`;
+    content.platform = clone;
+    content.owner = `${clone}:${event.params.owner.toHex()}`;
     content.setAtTimestamp = event.block.timestamp.toString();
     content.save();
 

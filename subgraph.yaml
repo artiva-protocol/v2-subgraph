@@ -6,7 +6,7 @@ dataSources:
     name: Observability
     network: goerli
     source:
-      address: "0x26cacee46c4ef65d4735643b1b25e4aa35f70034"
+      address: "0xe812325db36b453688f3d212a573a05b621b4b86"
       abi: Observability
       startBlock: 7624500
     mapping:

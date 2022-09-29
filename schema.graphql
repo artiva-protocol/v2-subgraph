@@ -2,6 +2,7 @@ type Platform @entity {
   id: ID!
   users: [PlatformUser!]! @derivedFrom(field: "platform")
   posts: [Post!]! @derivedFrom(field: "platform")
+  tags: [Tag!]! @derivedFrom(field: "platform")
   metadataJSON: String
   contentAddedTimestamp: String
   metadataUpdatedTimestamp: String!
@@ -23,18 +24,14 @@ type Post @entity {
   platform: Platform!
   owner: PlatformUser!
   setAtTimestamp: String!
-  tags: [PostTag!]! @derivedFrom(field: "post")
+  tags: [Tag!]!
 }
 
 type Tag @entity {
   id: ID!
-  posts: [PostTag!]! @derivedFrom(field: "tag")
-}
-
-type PostTag @entity {
-  id: ID!
-  tag: Tag!
-  post: Post!
+  name: String!
+  platform: Platform!
+  posts: [Post!]! @derivedFrom(field: "tags")
 }
 
 type PlatformUser @entity {
