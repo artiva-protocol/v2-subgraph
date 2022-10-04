@@ -20,11 +20,7 @@ export function handleContentSet(event: ContentSet): void {
   let clone = event.params.clone.toHex();
   let bundleId = event.params.bundleId.toHex();
 
-  //Check if bundle JSON is formatted properly
-  let rawBundle = json.try_fromString(event.params.bundleJSON);
-  if (rawBundle.isError || rawBundle.value.kind !== JSONValueKind.ARRAY) return;
-
-  let bundle = Bundle.load(event.params.bundleId.toHex());
+  let bundle = Bundle.load(`${clone}:${bundleId}`);
   if (bundle) {
     //Clear previous posts
     for (let i = 0; i < bundle.length; i++) {
@@ -32,8 +28,18 @@ export function handleContentSet(event: ContentSet): void {
       store.remove("Post", postId);
     }
   } else {
-    bundle = new Bundle(bundleId);
+    bundle = new Bundle(`${clone}:${bundleId}`);
+    bundle.bundleId = bundleId;
+    bundle.platform = clone;
+    bundle.owner = `${clone}:${event.params.owner.toHex()}`;
+    bundle.createdAtTimestamp = event.block.timestamp.toString();
   }
+
+  bundle.bundleJSON = event.params.bundleJSON;
+
+  //Check if bundle JSON is formatted properly
+  let rawBundle = json.try_fromString(event.params.bundleJSON);
+  if (rawBundle.isError || rawBundle.value.kind !== JSONValueKind.ARRAY) return;
 
   let bundleArray = rawBundle.value.toArray();
   let bundleLength = 0;
@@ -73,12 +79,14 @@ export function handleContentSet(event: ContentSet): void {
       }
     }
 
+    //JSON properties
     content.postId = rawContent.mustGetEntry("id").value.toString();
     content.contentJSON = rawContent
       .mustGetEntry("contentJSON")
       .value.toString();
     content.type = rawContent.mustGetEntry("type").value.toString();
 
+    //Meta properties
     content.tags = tagIds;
     content.bundle = event.params.bundleId.toHex();
     content.platform = clone;

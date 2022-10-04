@@ -11,8 +11,13 @@ type Platform @entity {
 
 type Bundle @entity {
   id: ID!
+  bundleId: String!
   posts: [Post!]! @derivedFrom(field: "bundle")
+  bundleJSON: String!
   length: Int!
+  owner: PlatformUser!
+  platform: Platform!
+  createdAtTimestamp: String!
 }
 
 type Post @entity {
