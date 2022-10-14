@@ -5,8 +5,8 @@ import {
   PlatformMetadataSet,
   RoleSet,
 } from "../generated/Observability/Observability";
-import { Platform, Post, Bundle, PlatformUser, Tag } from "../generated/schema";
-import { json, store, JSONValueKind } from "@graphprotocol/graph-ts";
+import { Platform, Post, PlatformUser, Tag } from "../generated/schema";
+import { json, JSONValueKind } from "@graphprotocol/graph-ts";
 
 export function handleCloneDeployed(event: CloneDeployed): void {
   let platform = new Platform(event.params.clone.toHex());
@@ -18,87 +18,57 @@ export function handleCloneDeployed(event: CloneDeployed): void {
 
 export function handleContentSet(event: ContentSet): void {
   let clone = event.params.clone.toHex();
-  let bundleId = event.params.bundleId.toHex();
+  let contentId = event.params.contentId.toHex();
+  let postId = `${clone}:${contentId}`;
 
-  let bundle = Bundle.load(`${clone}:${bundleId}`);
-  if (bundle) {
-    //Clear previous posts
-    for (let i = 0; i < bundle.length; i++) {
-      let postId = clone + ":" + bundleId + ":" + i.toString();
-      store.remove("Post", postId);
-    }
-  } else {
-    bundle = new Bundle(`${clone}:${bundleId}`);
-    bundle.bundleId = bundleId;
-    bundle.platform = clone;
-    bundle.owner = `${clone}:${event.params.owner.toHex()}`;
-    bundle.createdAtTimestamp = event.block.timestamp.toString();
+  let post = Post.load(postId);
+  if (!post) {
+    post = new Post(postId);
+    post.order = event.params.contentId.toI32();
   }
 
-  bundle.bundleJSON = event.params.bundleJSON;
+  post.contentJSON = event.params.content;
 
-  //Check if bundle JSON is formatted properly
-  let rawBundle = json.try_fromString(event.params.bundleJSON);
-  if (rawBundle.isError || rawBundle.value.kind !== JSONValueKind.ARRAY) return;
+  //Check if content JSON is formatted properly
+  let rawJSON = json.try_fromString(event.params.content);
+  if (rawJSON.isError || rawJSON.value.kind !== JSONValueKind.OBJECT) return;
 
-  let bundleArray = rawBundle.value.toArray();
-  let bundleLength = 0;
+  let rawContent = rawJSON.value.toObject();
 
-  //Get content from bundle
-  for (let i = 0; i < bundleArray.length; i++) {
-    //if json is not formatted properly skip this entry
-    if (bundleArray[i].kind !== JSONValueKind.OBJECT) continue;
-    let rawContent = bundleArray[i].toObject();
+  //if required properties are not set skip this entry
+  if (!rawContent.isSet("type") || !rawContent.isSet("contentJSON")) return;
 
-    //if required properties are not set skip this entry
-    if (
-      !rawContent.isSet("id") ||
-      !rawContent.isSet("type") ||
-      !rawContent.isSet("contentJSON")
-    )
-      continue;
+  //Handle tags
+  let tagIds: string[] = [];
+  if (rawContent.isSet("tags")) {
+    //Parse and split tags
+    let tagString = rawContent.mustGetEntry("tags").value.toString();
+    let tagArray = tagString.split("|");
 
-    //Create post object
-    let postId = clone + ":" + bundleId + ":" + bundleLength.toString();
-    let content = new Post(postId);
+    //Create tag objects
+    for (let i = 0; i < tagArray.length; i++) {
+      let tagId = `${clone}:${tagArray[i]}`;
 
-    //Handle tags
-    let tagIds: string[] = [];
-    if (rawContent.isSet("tags")) {
-      let tagString = rawContent.mustGetEntry("tags").value.toString();
-      let tagArray = tagString.split("|");
-      for (let i = 0; i < tagArray.length; i++) {
-        let tagId = `${clone}:${tagArray[i]}`;
+      let tag = new Tag(tagId);
+      tag.name = tagArray[i];
+      tag.platform = clone;
+      tag.save();
 
-        let tag = new Tag(tagId);
-        tag.name = tagArray[i];
-        tag.platform = clone;
-        tag.save();
-
-        tagIds.push(tagId);
-      }
+      tagIds.push(tagId);
     }
-
-    //JSON properties
-    content.postId = rawContent.mustGetEntry("id").value.toString();
-    content.contentJSON = rawContent
-      .mustGetEntry("contentJSON")
-      .value.toString();
-    content.type = rawContent.mustGetEntry("type").value.toString();
-
-    //Meta properties
-    content.tags = tagIds;
-    content.bundle = event.params.bundleId.toHex();
-    content.platform = clone;
-    content.owner = `${clone}:${event.params.owner.toHex()}`;
-    content.setAtTimestamp = event.block.timestamp.toString();
-    content.save();
-
-    bundleLength++;
   }
 
-  bundle.length = bundleLength;
-  bundle.save();
+  //JSON properties
+  post.contentId = contentId;
+  post.contentJSON = rawContent.mustGetEntry("contentJSON").value.toString();
+  post.type = rawContent.mustGetEntry("type").value.toString();
+
+  //Meta properties
+  post.tags = tagIds;
+  post.platform = clone;
+  post.owner = `${clone}:${event.params.owner.toHex()}`;
+  post.setAtTimestamp = event.block.timestamp.toString();
+  post.save();
 
   let platform = new Platform(event.params.clone.toHex());
   platform.contentAddedTimestamp = event.block.timestamp.toString();
@@ -106,8 +76,39 @@ export function handleContentSet(event: ContentSet): void {
 }
 
 export function handlePlatformMetadataSet(event: PlatformMetadataSet): void {
-  let platform = new Platform(event.params.clone.toHex());
-  platform.metadataJSON = event.params.metadataJSON;
+  let address = event.params.clone.toHex();
+  let platform = new Platform(address);
+
+  let rawJSON = json.try_fromString(event.params.metadata);
+  if (rawJSON.isError || rawJSON.value.kind !== JSONValueKind.OBJECT) return;
+
+  let rawMeta = rawJSON.value.toObject();
+
+  //Handle post ordering
+  if (rawMeta.isSet("order")) {
+    let order = rawMeta.mustGetEntry("order");
+    let orderArray = order.value.toArray();
+
+    for (let i = 0; i < orderArray.length; i++) {
+      if (orderArray[i].kind !== JSONValueKind.OBJECT) break;
+
+      //Parse order object
+      let orderValue = orderArray[i].toObject();
+      let post = Post.load(
+        `${address}:${orderValue.mustGet("postId").toString()}`
+      );
+
+      //Set post order if it exists
+      if (!post) break;
+
+      //Parse order and cast to i32 for gql compatibility
+      post.order = i32(orderValue.mustGet("order").toI64());
+
+      post.save();
+    }
+  }
+
+  platform.metadataJSON = event.params.metadata;
   platform.metadataUpdatedTimestamp = event.block.timestamp.toString();
   platform.save();
 }
@@ -124,6 +125,7 @@ export function handleRoleSet(event: RoleSet): void {
     user.metadataManager = false;
   }
 
+  //Hardcoded role hashes found in contract
   let admin =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
   let contentPublisher =

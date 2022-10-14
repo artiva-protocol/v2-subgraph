@@ -9,27 +9,16 @@ type Platform @entity {
   deployedAtTimestamp: String!
 }
 
-type Bundle @entity {
-  id: ID!
-  bundleId: String!
-  posts: [Post!]! @derivedFrom(field: "bundle")
-  bundleJSON: String!
-  length: Int!
-  owner: PlatformUser!
-  platform: Platform!
-  createdAtTimestamp: String!
-}
-
 type Post @entity {
   id: ID!
-  postId: String!
+  contentId: String!
   contentJSON: String!
   type: String!
-  bundle: Bundle!
   platform: Platform!
   owner: PlatformUser!
   setAtTimestamp: String!
   tags: [Tag!]!
+  order: Int!
 }
 
 type Tag @entity {
