@@ -4,9 +4,9 @@ schema:
 dataSources:
   - kind: ethereum
     name: Observability
-    network: goerli
+    network: matic
     source:
-      address: "0x63167ee6bed8897e264ed128ebe3abae23be190b"
+      address: "0xe855fe75b5894b3092704cf868867c7fb5a76369"
       abi: Observability
       startBlock: 7624500
     mapping:
@@ -16,6 +16,7 @@ dataSources:
       entities:
         - CloneDeployed
         - ContentSet
+        - ContentRemoved
         - FactoryImplementationSet
         - PlatformMetadataSet
         - RoleSet
@@ -27,10 +28,12 @@ dataSources:
           handler: handleCloneDeployed
         - event: ContentSet(indexed address,indexed uint256,string,indexed address)
           handler: handleContentSet
+        - event: ContentRemoved(indexed address,indexed uint256)
+          handler: handleContentSet
         - event: FactoryImplementationSet(indexed address,indexed address,indexed address)
           handler: handleFactoryImplementationSet
         - event: PlatformMetadataSet(indexed address,string)
           handler: handlePlatformMetadataSet
-        - event: RoleSet(indexed address,indexed address,indexed bytes32,bool)
+        - event: RoleSet(indexed address,indexed address,indexed uint8)
           handler: handleRoleSet
       file: ./src/observability.ts

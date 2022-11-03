@@ -28,12 +28,17 @@ type Tag @entity {
   posts: [Post!]! @derivedFrom(field: "tags")
 }
 
+enum Role {
+  UNAUTHORIZED
+  PUBLISHER
+  MANAGER
+  ADMIN
+}
+
 type PlatformUser @entity {
   id: ID!
   user: Bytes!
   platform: Platform!
-  admin: Boolean
-  contentPublisher: Boolean
-  metadataManager: Boolean
+  role: Role!
   posts: [Post!]! @derivedFrom(field: "owner")
 }

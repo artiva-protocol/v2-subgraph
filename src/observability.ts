@@ -1,12 +1,13 @@
 import {
   CloneDeployed,
+  ContentRemoved,
   ContentSet,
   FactoryImplementationSet,
   PlatformMetadataSet,
   RoleSet,
 } from "../generated/Observability/Observability";
 import { Platform, Post, PlatformUser, Tag } from "../generated/schema";
-import { json, JSONValueKind } from "@graphprotocol/graph-ts";
+import { json, JSONValueKind, store } from "@graphprotocol/graph-ts";
 
 export function handleCloneDeployed(event: CloneDeployed): void {
   let platform = new Platform(event.params.clone.toHex());
@@ -75,6 +76,11 @@ export function handleContentSet(event: ContentSet): void {
   platform.save();
 }
 
+export function handleContentRemoved(event: ContentRemoved): void {
+  let id = `${event.params.clone.toHex()}:${event.params.contentId.toHex()}`;
+  store.remove("Post", id);
+}
+
 export function handlePlatformMetadataSet(event: PlatformMetadataSet): void {
   let address = event.params.clone.toHex();
   let platform = new Platform(address);
@@ -120,28 +126,23 @@ export function handleRoleSet(event: RoleSet): void {
   if (!user) {
     user = new PlatformUser(userId);
     user.user = event.params.account;
-    user.admin = false;
-    user.contentPublisher = false;
-    user.metadataManager = false;
+    user.platform = event.params.clone.toHex();
   }
 
-  //Hardcoded role hashes found in contract
-  let admin =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
-  let contentPublisher =
-    "0xbe2fbcab6b03dc42158993aa7c9e7b92519cf9abefeafb3902d8cc76e7dd14ed";
-  let metadataManager =
-    "0x21e141d29efe528175baa3d6b347407f49288a1a3c0aebcc3160cd2b50b2a9c1";
-
-  let granted = event.params.granted;
-
-  if (event.params.role.toHex() == admin) user.admin = granted;
-  if (event.params.role.toHex() == contentPublisher)
-    user.contentPublisher = granted;
-  if (event.params.role.toHex() == metadataManager)
-    user.metadataManager = granted;
-
-  user.platform = event.params.clone.toHex();
+  switch (event.params.role) {
+    case 0:
+      user.role = "UNAUTHORIZED";
+      break;
+    case 1:
+      user.role = "PUBLISHER";
+      break;
+    case 2:
+      user.role = "MANAGER";
+      break;
+    case 3:
+      user.role = "ADMIN";
+      break;
+  }
 
   user.save();
 }
